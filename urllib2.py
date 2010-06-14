@@ -1074,6 +1074,14 @@ class ProxyDigestAuthHandler(BaseHandler, AbstractDigestAuthHandler):
         self.reset_retry_count()
         return retry
 
+class RecvAdapter(object):
+    def __init__(self, wrapped):
+        self.wrapped = wrapped
+    def recv(self, amt):
+        return self.wrapped.read(amt)
+    def close(self):
+        self.wrapped.close()
+
 class AbstractHTTPHandler(BaseHandler):
 
     def __init__(self, debuglevel=0):
@@ -1110,6 +1118,25 @@ class AbstractHTTPHandler(BaseHandler):
                 request.add_unredirected_header(name, value)
 
         return request
+
+    def _create_response(self, h, r, full_url):
+        # Pick apart the HTTPResponse object to get the addinfourl
+        # object initialized properly.
+
+        # Wrap the HTTPResponse object in socket's file object adapter
+        # for Windows.  That adapter calls recv(), so delegate recv()
+        # to read().  This weird wrapping allows the returned object to
+        # have readline() and readlines() methods.
+
+        # XXX It might be better to extract the read buffering code
+        # out of socket._fileobject() and into a base class.
+        #r.recv = r.read
+        fp = socket._fileobject(RecvAdapter(r), close=True)
+
+        resp = urllib2.addinfourl(fp, r.msg, full_url)
+        resp.code = r.status
+        resp.msg = r.reason
+        return resp
 
     def do_open(self, http_class, req):
         """Return an addinfourl object for the request, using http_class.
@@ -1156,24 +1183,7 @@ class AbstractHTTPHandler(BaseHandler):
         except socket.error, err: # XXX what error?
             raise URLError(err)
 
-        # Pick apart the HTTPResponse object to get the addinfourl
-        # object initialized properly.
-
-        # Wrap the HTTPResponse object in socket's file object adapter
-        # for Windows.  That adapter calls recv(), so delegate recv()
-        # to read().  This weird wrapping allows the returned object to
-        # have readline() and readlines() methods.
-
-        # XXX It might be better to extract the read buffering code
-        # out of socket._fileobject() and into a base class.
-
-        r.recv = r.read
-        fp = socket._fileobject(r, close=True)
-
-        resp = addinfourl(fp, r.msg, req.get_full_url())
-        resp.code = r.status
-        resp.msg = r.reason
-        return resp
+        return self._create_response(h, r, req.get_full_url())
 
 
 class HTTPHandler(AbstractHTTPHandler):
