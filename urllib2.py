@@ -959,6 +959,9 @@ class AbstractDigestAuthHandler:
                                             randombytes(8))).hexdigest()
         return dig[:16]
 
+    def get_user_and_password(self):
+        return self.passwd.find_user_password(realm, req.get_full_url())
+
     def get_authorization(self, req, chal):
         try:
             realm = chal['realm']
@@ -975,7 +978,7 @@ class AbstractDigestAuthHandler:
         if H is None:
             return None
 
-        user, pw = self.passwd.find_user_password(realm, req.get_full_url())
+        user, pw = self.get_user_and_password()
         if user is None:
             return None
 
@@ -1059,6 +1062,10 @@ class ProxyDigestAuthHandler(BaseHandler, AbstractDigestAuthHandler):
 
     auth_header = 'Proxy-Authorization'
     handler_order = 490  # before Basic auth
+
+    def get_user_and_password(self):
+        # For proxies we want to digest against the proxy host.
+        return self.passwd.find_user_password(realm, req.get_host())
 
     def http_error_407(self, req, fp, code, msg, headers):
         host = req.get_host()
