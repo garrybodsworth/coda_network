@@ -187,7 +187,8 @@ def request_host(request):
 class Request:
 
     def __init__(self, url, data=None, headers={},
-                 origin_req_host=None, unverifiable=False):
+                 origin_req_host=None, unverifiable=False,
+                 method=None):
         # unwrap('<URL:type://host/path>') --> 'type://host/path'
         self.__original = unwrap(url)
         self.type = None
@@ -204,6 +205,7 @@ class Request:
             origin_req_host = request_host(self)
         self.origin_req_host = origin_req_host
         self.unverifiable = unverifiable
+        self.method = method
 
     def __getattr__(self, attr):
         # XXX this is a fallback mechanism to guard against these
@@ -218,10 +220,13 @@ class Request:
         raise AttributeError, attr
 
     def get_method(self):
-        if self.has_data():
-            return "POST"
+        if self.method:
+            return self.method
         else:
-            return "GET"
+            if self.has_data():
+                return "POST"
+            else:
+                return "GET"
 
     # XXX these helper methods are lame
 
