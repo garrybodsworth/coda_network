@@ -1070,6 +1070,22 @@ class ProxyDigestAuthHandler(BaseHandler, AbstractDigestAuthHandler):
         return self.passwd.find_user_password(realm, req.get_host())
 
     def get_request(self, req):
+        if req._tunnel_host:
+            tunnel_host = req._tunnel_host
+            port = req.http_conn._tunnel_port
+            if ':' in tunnel_host:
+                tunnel_parse = urlparse.urlparse(req._tunnel_host, 'https')
+                try:
+                    port = int(tunnel_parse.port)
+                except:
+                    port = None
+                tunnel_host = tunnel_parse.netloc
+
+            if port is None:
+                port = req.http_conn.default_port
+
+            return ('CONNECT', '%s:%s' % (tunnel_host, port))
+
         return (req.get_method(), req.get_selector())
 
     def http_error_407(self, req, fp, code, msg, headers):
@@ -1172,6 +1188,8 @@ class AbstractHTTPHandler(BaseHandler):
         headers = dict(
             (name.title(), val) for name, val in headers.items())
 
+        req.http_conn = h
+
         if req._tunnel_host:
             tunnel_headers = {}
             proxy_auth_hdr = "Proxy-Authorization"
@@ -1186,6 +1204,7 @@ class AbstractHTTPHandler(BaseHandler):
             h.request(req.get_method(), req.get_selector(), req.data, headers)
             r = h.getresponse()
         except socket.error, err: # XXX what error?
+            req.http_conn = None
             raise URLError(err)
 
         return self._create_response(h, r, req.get_full_url())
