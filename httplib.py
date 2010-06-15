@@ -647,8 +647,10 @@ class HTTPConnection:
     strict = 0
 
     def __init__(self, host, port=None, strict=None,
-                 timeout=socket._GLOBAL_DEFAULT_TIMEOUT):
+                 timeout=socket._GLOBAL_DEFAULT_TIMEOUT,
+                 tcp_keepalive=False):
         self.timeout = timeout
+        self.tcp_keepalive = tcp_keepalive
         self.sock = None
         self._buffer = []
         self.__response = None
@@ -718,6 +720,10 @@ class HTTPConnection:
         """Connect to the host and port specified in __init__."""
         self.sock = socket.create_connection((self.host,self.port),
                                              self.timeout)
+
+        if self.tcp_keepalive:
+            # Make the socket tcp_keepalive
+            self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
 
         if self._tunnel_host:
             self._tunnel(self._tunnel_host, self._tunnel_port, self._tunnel_headers)
@@ -1107,10 +1113,9 @@ else:
         def __init__(self, host, port=None, key_file=None, cert_file=None,
                      strict=None, timeout=socket._GLOBAL_DEFAULT_TIMEOUT,
                      tcp_keepalive=False):
-            HTTPConnection.__init__(self, host, port, strict, timeout)
+            HTTPConnection.__init__(self, host, port, strict, timeout, tcp_keepalive)
             self.key_file = key_file
             self.cert_file = cert_file
-            self.tcp_keepalive = tcp_keepalive
 
             # This is the actual host and port to connect to (ie, the proxy)
             self._real_host = self.host
@@ -1126,9 +1131,6 @@ else:
         def connect(self):
             "Connect to a host on a given (SSL) port."
             self.sock = socket.create_connection((self._real_host, self._real_port), self.timeout)
-            if self.tcp_keepalive:
-                # Make the socket tcp_keepalive
-                self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
 
             if self._tunnel_host:
                 self._set_hostport(self._tunnel_host, self._tunnel_port)
