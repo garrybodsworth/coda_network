@@ -695,10 +695,10 @@ class HTTPConnection:
     def set_debuglevel(self, level):
         self.debuglevel = level
 
-    def _tunnel(self):
-        self._set_hostport(self._tunnel_host, self._tunnel_port)
+    def _tunnel(self, tun_host, tun_port, tun_headers):
+        self._set_hostport(tun_host, tun_port)
         self.send("CONNECT %s:%d HTTP/1.0\r\n" % (self.host, self.port))
-        for header, value in self._tunnel_headers.iteritems():
+        for header, value in tun_headers.iteritems():
             self.send("%s: %s\r\n" % (header, value))
         self.send("\r\n")
         response = self.response_class(self.sock, strict = self.strict,
@@ -720,7 +720,7 @@ class HTTPConnection:
                                              self.timeout)
 
         if self._tunnel_host:
-            self._tunnel()
+            self._tunnel(self._tunnel_host, self._tunnel_port, self._tunnel_headers)
 
     def close(self):
         """Close the connection to the HTTP server."""
@@ -1096,24 +1096,84 @@ except ImportError:
     pass
 else:
     class HTTPSConnection(HTTPConnection):
-        "This class allows communication via SSL."
+        """This class allows communication via SSL.
+
+        It stops the CONNECT failing with a non-handled error so we can deal
+        with the error correctly (like authorization).
+        """
 
         default_port = HTTPS_PORT
 
         def __init__(self, host, port=None, key_file=None, cert_file=None,
-                     strict=None, timeout=socket._GLOBAL_DEFAULT_TIMEOUT):
+                     strict=None, timeout=socket._GLOBAL_DEFAULT_TIMEOUT,
+                     tcp_keepalive=False):
             HTTPConnection.__init__(self, host, port, strict, timeout)
             self.key_file = key_file
             self.cert_file = cert_file
+            self.tcp_keepalive = tcp_keepalive
+
+            # This is the actual host and port to connect to (ie, the proxy)
+            self._real_host = self.host
+            self._real_port = self.port
+
+            # This is to store a response from the server about CONNECT through
+            # proxies which allows us to give errors in the correct order.
+            self.connect_response = None
+
+        def make_ssl(self):
+            self.sock = ssl.wrap_socket(self.sock, self.key_file, self.cert_file)
 
         def connect(self):
             "Connect to a host on a given (SSL) port."
+            self.sock = socket.create_connection((self._real_host, self._real_port), self.timeout)
+            if self.tcp_keepalive:
+                # Make the socket tcp_keepalive
+                self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
 
-            sock = socket.create_connection((self.host, self.port), self.timeout)
             if self._tunnel_host:
-                self.sock = sock
-                self._tunnel()
-            self.sock = ssl.wrap_socket(sock, self.key_file, self.cert_file)
+                self._set_hostport(self._tunnel_host, self._tunnel_port)
+            else:
+                self.make_ssl()
+
+        def request(self, method, url, body=None, headers={}):
+            """Send a complete request to the server."""
+            if not self._tunnel_host:
+                # No tunnel then.  Use the base implementation.
+                return httplib.HTTPSConnection.request(self, method, url, body, headers)
+
+            # We are now tunnelling
+            resp = self._tunnel(self._tunnel_host, self._tunnel_port, self._tunnel_headers)
+
+            if resp.status == 200:
+                try:
+                    self.make_ssl()
+                    o = urlparse.urlparse(url, 'http')
+                    self._send_request(method, o.path, body, headers)
+                except socket.error, v:
+                    # trap 'Broken pipe' if we're allowed to automatically reconnect
+                    if v[0] != 32 or not self.auto_open:
+                        raise
+                    # try one more time
+                    self._send_request(method, o.path, body, headers)
+
+            else:
+                self.connect_response = resp
+
+        def getresponse(self):
+            if self.connect_response:
+                return self.connect_response
+            return httplib.HTTPSConnection.getresponse(self)
+
+        def _tunnel(self, tun_host, tun_port, tun_headers):
+            self._set_hostport(tun_host, tun_port)
+            self.send("CONNECT %s:%d HTTP/1.0\r\n" % (self.host, self.port))
+            for header, value in tun_headers.iteritems():
+                self.send("%s: %s\r\n" % (header, value))
+            self.send("\r\n")
+            response = self.response_class(self.sock, strict = self.strict,
+                                           method = self._method)
+            response.begin()
+            return response
 
     __all__.append("HTTPSConnection")
 
