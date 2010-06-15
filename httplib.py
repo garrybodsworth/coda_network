@@ -69,7 +69,7 @@ Req-sent-unread-response       _CS_REQ_SENT       <response_class>
 from array import array
 import socket
 from sys import py3kwarning
-from urlparse import urlsplit
+from urlparse import urlsplit, urlparse
 import warnings
 with warnings.catch_warnings():
     if py3kwarning:
@@ -1149,7 +1149,7 @@ else:
             if resp.status == 200:
                 try:
                     self.make_ssl()
-                    o = urlparse.urlparse(url, 'http')
+                    o = urlparse(url, 'http')
                     self._send_request(method, o.path, body, headers)
                 except socket.error, v:
                     # trap 'Broken pipe' if we're allowed to automatically reconnect
