@@ -1154,7 +1154,7 @@ class AbstractHTTPHandler(BaseHandler):
         #r.recv = r.read
         fp = socket._fileobject(RecvAdapter(r), close=True)
 
-        resp = urllib2.addinfourl(fp, r.msg, full_url)
+        resp = addinfourl(fp, r.msg, full_url)
         resp.code = r.status
         resp.msg = r.reason
         return resp
