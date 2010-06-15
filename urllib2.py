@@ -1240,13 +1240,13 @@ if hasattr(httplib, 'HTTPS'):
             # Rather than pass in a reference to a connection class, we pass in
             # a reference to a function which, for all intents and purposes,
             # will behave as a constructor
-            return self.fixed_do_open(self.get_connection, req)
+            return self.do_open(self.get_connection, req)
 
         def get_connection(self, host, port=None, key_file=None, cert_file=None,
                          strict=None, timeout=socket._GLOBAL_DEFAULT_TIMEOUT):
             return self.http_class(host, port=port, key_file=self.cert,
                                     cert_file=self.cert, strict=strict,
-                                    timeout=timeout, self.tcp_keepalive)
+                                    timeout=timeout, tcp_keepalive=self.tcp_keepalive)
 
         https_request = AbstractHTTPHandler.do_request_
 
