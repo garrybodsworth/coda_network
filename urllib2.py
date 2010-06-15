@@ -1188,16 +1188,41 @@ class AbstractHTTPHandler(BaseHandler):
 
 class HTTPHandler(AbstractHTTPHandler):
 
+    http_class = httplib.HTTPConnection
+
     def http_open(self, req):
-        return self.do_open(httplib.HTTPConnection, req)
+        return self.do_open(self.http_class, req)
 
     http_request = AbstractHTTPHandler.do_request_
 
 if hasattr(httplib, 'HTTPS'):
     class HTTPSHandler(AbstractHTTPHandler):
+        """This class represents downloading a HTTPS resource.
+        Because proxies are normally http you can't connect to
+        the proxy and then use the same object to download the
+        HTTPS resource.
+        """
+
+        http_class = httplib.HTTPSConnection
+
+        def __init__(self, debuglevel=0, tcp_keepalive=False, cert=None):
+            AbstractHTTPHandler.__init__(self, debuglevel=debuglevel)
+            # Whether the socket requires tcp keepalive.
+            self.tcp_keepalive = tcp_keepalive
+            # The certificate to validate the remote server against.
+            self.cert = cert
 
         def https_open(self, req):
-            return self.do_open(httplib.HTTPSConnection, req)
+            # Rather than pass in a reference to a connection class, we pass in
+            # a reference to a function which, for all intents and purposes,
+            # will behave as a constructor
+            return self.fixed_do_open(self.get_connection, req)
+
+        def get_connection(self, host, port=None, key_file=None, cert_file=None,
+                         strict=None, timeout=socket._GLOBAL_DEFAULT_TIMEOUT):
+            return self.http_class(host, port=port, key_file=self.cert,
+                                    cert_file=self.cert, strict=strict,
+                                    timeout=timeout, self.tcp_keepalive)
 
         https_request = AbstractHTTPHandler.do_request_
 
