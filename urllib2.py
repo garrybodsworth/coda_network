@@ -206,6 +206,7 @@ class Request:
         self.origin_req_host = origin_req_host
         self.unverifiable = unverifiable
         self.method = method
+        self.http_conn = None
 
     def __getattr__(self, attr):
         # XXX this is a fallback mechanism to guard against these
@@ -992,8 +993,9 @@ class AbstractDigestAuthHandler:
         else:
             entdig = None
 
+        method, host = self.get_request(req)
         A1 = "%s:%s:%s" % (user, realm, pw)
-        A2 = "%s:%s" % self.get_request(req)
+        A2 = "%s:%s" % (method, host)
         if qop == 'auth':
             if nonce == self.last_nonce:
                 self.nonce_count += 1
@@ -1014,7 +1016,7 @@ class AbstractDigestAuthHandler:
         # XXX should the partial digests be encoded too?
 
         base = 'username="%s", realm="%s", nonce="%s", uri="%s", ' \
-               'response="%s"' % (user, realm, nonce, req.get_selector(),
+               'response="%s"' % (user, realm, nonce, host,
                                   respdig)
         if opaque:
             base += ', opaque="%s"' % opaque
@@ -1071,20 +1073,10 @@ class ProxyDigestAuthHandler(BaseHandler, AbstractDigestAuthHandler):
 
     def get_request(self, req):
         if req._tunnel_host:
-            tunnel_host = req._tunnel_host
-            port = req.http_conn._tunnel_port
-            if ':' in tunnel_host:
-                tunnel_parse = urlparse.urlparse(req._tunnel_host, 'https')
-                try:
-                    port = int(tunnel_parse.port)
-                except:
-                    port = None
-                tunnel_host = tunnel_parse.netloc
-
-            if port is None:
-                port = req.http_conn.default_port
-
-            return ('CONNECT', '%s:%s' % (tunnel_host, port))
+            if req.http_conn._real_host and req.http_conn._real_port:
+                return ('CONNECT',
+                        '%s:%s' % (req.http_conn._real_host,
+                                    req.http_conn._real_port))
 
         return (req.get_method(), req.get_selector())
 
@@ -1140,7 +1132,7 @@ class AbstractHTTPHandler(BaseHandler):
 
         return request
 
-    def _create_response(self, h, r, full_url):
+    def create_response(self, h, r, full_url):
         # Pick apart the HTTPResponse object to get the addinfourl
         # object initialized properly.
 
@@ -1173,8 +1165,8 @@ class AbstractHTTPHandler(BaseHandler):
         if not host:
             raise URLError('no host given')
 
-        h = http_class(host, timeout=req.timeout) # will parse host:port
-        h.set_debuglevel(self._debuglevel)
+        req.http_conn = http_class(host, timeout=req.timeout) # will parse host:port
+        req.http_conn.set_debuglevel(self._debuglevel)
 
         headers = dict(req.headers)
         headers.update(req.unredirected_hdrs)
@@ -1188,8 +1180,6 @@ class AbstractHTTPHandler(BaseHandler):
         headers = dict(
             (name.title(), val) for name, val in headers.items())
 
-        req.http_conn = h
-
         if req._tunnel_host:
             tunnel_headers = {}
             proxy_auth_hdr = "Proxy-Authorization"
@@ -1198,16 +1188,16 @@ class AbstractHTTPHandler(BaseHandler):
                 # Proxy-Authorization should not be sent to origin
                 # server.
                 del headers[proxy_auth_hdr]
-            h._set_tunnel(req._tunnel_host, headers=tunnel_headers)
+            req.http_conn._set_tunnel(req._tunnel_host, headers=tunnel_headers)
 
         try:
-            h.request(req.get_method(), req.get_selector(), req.data, headers)
-            r = h.getresponse()
+            req.http_conn.request(req.get_method(), req.get_selector(), req.data, headers)
+            r = req.http_conn.getresponse()
         except socket.error, err: # XXX what error?
             req.http_conn = None
             raise URLError(err)
 
-        return self._create_response(h, r, req.get_full_url())
+        return self.create_response(req.http_conn, r, req.get_full_url())
 
 
 class HTTPHandler(AbstractHTTPHandler):
