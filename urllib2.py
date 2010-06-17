@@ -207,6 +207,7 @@ class Request:
         self.unverifiable = unverifiable
         self.method = method
         self.http_conn = None
+        self.proxy_connection_type = 'keep-alive'
 
     def __getattr__(self, attr):
         # XXX this is a fallback mechanism to guard against these
@@ -879,6 +880,7 @@ class ProxyBasicAuthHandler(AbstractBasicAuthHandler, BaseHandler):
         # authority.  Assume there isn't one, since urllib2 does not (and
         # should not, RFC 3986 s. 3.2.1) support requests for URLs containing
         # userinfo.
+        req.proxy_connection_type = headers.get('Proxy-Connection', 'close')
         authority = req.get_host()
         return self.http_error_auth_reqed('proxy-authenticate',
                                           authority, req, headers)
@@ -1081,6 +1083,7 @@ class ProxyDigestAuthHandler(BaseHandler, AbstractDigestAuthHandler):
         return (req.get_method(), req.get_selector())
 
     def http_error_407(self, req, fp, code, msg, headers):
+        req.proxy_connection_type = headers.get('Proxy-Connection', 'close')
         host = req.get_host()
         retry = self.http_error_auth_reqed('proxy-authenticate',
                                            host, req, headers)
@@ -1161,13 +1164,15 @@ class AbstractHTTPHandler(BaseHandler):
             - geturl(): return the original request URL
             - code: HTTP status code
         """
-        connection_type = 'close'
 
         host = req.get_host()
         if not host:
             raise URLError('no host given')
 
-        req.http_conn = http_class(host, timeout=req.timeout) # will parse host:port
+        if not req.http_conn or (req.proxy_connection_type.lower() == 'close'):
+            req.http_conn = http_class(host, timeout=req.timeout) # will parse host:port
+            req.proxy_connection_type = 'Keep-Alive'
+
         req.http_conn.set_debuglevel(self._debuglevel)
 
         headers = dict(req.headers)
@@ -1178,7 +1183,8 @@ class AbstractHTTPHandler(BaseHandler):
         # which will block while the server waits for the next request.
         # So make sure the connection gets closed after the (only)
         # request.
-        headers['Connection'] = connection_type
+        headers['Connection'] = req.proxy_connection_type
+        headers['Proxy-Connection'] = req.proxy_connection_type
         headers = dict(
             (name.title(), val) for name, val in headers.items())
 
@@ -1195,6 +1201,11 @@ class AbstractHTTPHandler(BaseHandler):
         try:
             req.http_conn.request(req.get_method(), req.get_selector(), req.data, headers)
             r = req.http_conn.getresponse()
+            if r.status != 200:
+                if (req.proxy_connection_type.lower() == 'keep-alive'):
+                    # If we are reusing the connection then we need to make sure we read
+                    # all the outstanding data before attempting anything else.
+                    r.read()
         except socket.error, err: # XXX what error?
             req.http_conn = None
             raise URLError(err)

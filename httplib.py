@@ -1159,6 +1159,7 @@ else:
 
         def request(self, method, url, body=None, headers={}):
             """Send a complete request to the server."""
+            self.connect_response = None
             if not self._tunnel_host:
                 # No tunnel then.  Use the base implementation.
                 return HTTPConnection.request(self, method, url, body, headers)
@@ -1187,7 +1188,9 @@ else:
             return HTTPConnection.getresponse(self)
 
         def _tunnel(self, tun_host, tun_port, tun_headers):
-            return self._tunnel_setup(tun_host, tun_port, tun_headers)
+            response = self._tunnel_setup(tun_host, tun_port, tun_headers)
+
+            return response
 
     __all__.append("HTTPSConnection")
 
