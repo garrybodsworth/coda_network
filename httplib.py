@@ -699,10 +699,10 @@ class HTTPConnection:
 
     def _tunnel(self, tun_host, tun_port, tun_headers):
         self._set_hostport(tun_host, tun_port)
-        self.send("CONNECT %s:%d HTTP/1.0\r\n" % (self.host, self.port))
+        self.putrequest('CONNECT', '%s:%d' % (self.host, self.port))
         for header, value in tun_headers.iteritems():
-            self.send("%s: %s\r\n" % (header, value))
-        self.send("\r\n")
+            self.putheader(header, value)
+        self.endheaders()
         response = self.response_class(self.sock, strict = self.strict,
                                        method = self._method)
         (version, code, message) = response._read_status()
@@ -1168,10 +1168,10 @@ else:
 
         def _tunnel(self, tun_host, tun_port, tun_headers):
             self._set_hostport(tun_host, tun_port)
-            self.send("CONNECT %s:%d HTTP/1.0\r\n" % (self.host, self.port))
+            self.putrequest('CONNECT', '%s:%d' % (self.host, self.port))
             for header, value in tun_headers.iteritems():
-                self.send("%s: %s\r\n" % (header, value))
-            self.send("\r\n")
+                self.putheader(header, value)
+            self.endheaders()
             response = self.response_class(self.sock, strict = self.strict,
                                            method = self._method)
             response.begin()
