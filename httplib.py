@@ -697,7 +697,7 @@ class HTTPConnection:
     def set_debuglevel(self, level):
         self.debuglevel = level
 
-    def _tunnel(self, tun_host, tun_port, tun_headers):
+    def _tunnel_setup(self, tun_host, tun_port, tun_headers):
         self._set_hostport(tun_host, tun_port)
         self.putrequest('CONNECT', '%s:%d' % (self.host, self.port))
         for header, value in tun_headers.iteritems():
@@ -705,16 +705,19 @@ class HTTPConnection:
         self.endheaders()
         response = self.response_class(self.sock, strict = self.strict,
                                        method = self._method)
-        (version, code, message) = response._read_status()
+        response.begin()
+        self.__state = _CS_IDLE
+        return response
 
-        if code != 200:
+    def _tunnel(self, tun_host, tun_port, tun_headers):
+        response = self._tunnel_setup(tun_host, tun_port, tun_headers)
+        if response.status != 200:
             self.close()
-            raise socket.error, "Tunnel connection failed: %d %s" % (code,
-                                                                     message.strip())
+            raise socket.error, "Tunnel connection failed: %d %s" % (response.status,
+                                                                     response.reason.strip())
         while True:
             line = response.fp.readline()
             if line == '\r\n': break
-
 
     def connect(self):
         """Connect to the host and port specified in __init__."""
@@ -821,7 +824,7 @@ class HTTPConnection:
         if self.__state == _CS_IDLE:
             self.__state = _CS_REQ_STARTED
         else:
-            raise CannotSendRequest()
+            raise CannotSendRequest('Response state is currently %s' % (self.__state, ))
 
         # Save the method we use, we need it later in the response phase
         self._method = method
@@ -1167,15 +1170,7 @@ else:
             return HTTPConnection.getresponse(self)
 
         def _tunnel(self, tun_host, tun_port, tun_headers):
-            self._set_hostport(tun_host, tun_port)
-            self.putrequest('CONNECT', '%s:%d' % (self.host, self.port))
-            for header, value in tun_headers.iteritems():
-                self.putheader(header, value)
-            self.endheaders()
-            response = self.response_class(self.sock, strict = self.strict,
-                                           method = self._method)
-            response.begin()
-            return response
+            return self._tunnel_setup(tun_host, tun_port, tun_headers)
 
     __all__.append("HTTPSConnection")
 
