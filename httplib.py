@@ -323,14 +323,16 @@ class HTTPResponse:
     # false because it prevents clients from talking to HTTP/0.9
     # servers.  Note that a response with a sufficiently corrupted
     # status line will look like an HTTP/0.9 response.
+    # tunnel - if this is a tunnel response and we should keep it open.
 
     # See RFC 2616 sec 19.6 and RFC 1945 sec 6 for details.
 
-    def __init__(self, sock, debuglevel=0, strict=0, method=None):
+    def __init__(self, sock, debuglevel=0, strict=0, method=None, tunnel=False):
         self.fp = sock.makefile('rb', 0)
         self.debuglevel = debuglevel
         self.strict = strict
         self._method = method
+        self.tunnel = tunnel
 
         self.msg = None
 
@@ -460,11 +462,15 @@ class HTTPResponse:
         # a content-length was not provided, then assume that the connection
         # WILL close.
         if not self.will_close and \
+           not self.tunnel and \
            not self.chunked and \
            self.length is None:
             self.will_close = 1
 
     def _check_close(self):
+        if self.tunnel:
+            return False
+
         conn = self.msg.getheader('connection')
         if self.version == 11:
             # An HTTP/1.1 proxy is assumed to stay open unless
@@ -625,13 +631,13 @@ class HTTPResponse:
 
     def getheader(self, name, default=None):
         if self.msg is None:
-            raise ResponseNotReady()
+            raise ResponseNotReady('No message')
         return self.msg.getheader(name, default)
 
     def getheaders(self):
         """Return list of (header, value) tuples."""
         if self.msg is None:
-            raise ResponseNotReady()
+            raise ResponseNotReady('No message')
         return self.msg.items()
 
 
@@ -704,9 +710,17 @@ class HTTPConnection:
             self.putheader(header, value)
         self.endheaders()
         response = self.response_class(self.sock, strict = self.strict,
-                                       method = self._method)
+                                       method = self._method,
+                                       tunnel = True)
         response.begin()
         self.__state = _CS_IDLE
+
+        if response.will_close:
+            # this effectively passes the connection to the response
+            self.close()
+        else:
+            # remember this, so we can tell when it is complete
+            self.__response = response
 
         return response
 
@@ -800,7 +814,8 @@ class HTTPConnection:
         """
 
         # if a prior response has been completed, then forget about it.
-        if self.__response and self.__response.isclosed():
+        if self.__response and \
+            (self.__response.isclosed() or self.__response.tunnel):
             self.__response = None
 
 
@@ -902,7 +917,7 @@ class HTTPConnection:
         For example: h.putheader('Accept', 'text/html')
         """
         if self.__state != _CS_REQ_STARTED:
-            raise CannotSendHeader()
+            raise CannotSendHeader('State is %s' % self.__state)
 
         str = '%s: %s' % (header, value)
         self._output(str)
@@ -913,7 +928,7 @@ class HTTPConnection:
         if self.__state == _CS_REQ_STARTED:
             self.__state = _CS_REQ_SENT
         else:
-            raise CannotSendHeader()
+            raise CannotSendHeader('State is %s' % self.__state)
 
         self._send_output()
 
@@ -967,7 +982,8 @@ class HTTPConnection:
         "Get the response from the server."
 
         # if a prior response has been completed, then forget about it.
-        if self.__response and self.__response.isclosed():
+        if self.__response and \
+            (self.__response.isclosed() or self.__response.tunnel):
             self.__response = None
 
         #
@@ -987,7 +1003,7 @@ class HTTPConnection:
         #                  isclosed() status to become true.
         #
         if self.__state != _CS_REQ_SENT or self.__response:
-            raise ResponseNotReady()
+            raise ResponseNotReady('State %s' % self.__state)
 
         if self.debuglevel > 0:
             response = self.response_class(self.sock, self.debuglevel,
