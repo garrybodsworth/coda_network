@@ -1178,11 +1178,12 @@ class AbstractHTTPHandler(BaseHandler):
         # which will block while the server waits for the next request.
         # So make sure the connection gets closed after the (only)
         # request.
+        headers['Connection'] = connection_type
         headers = dict(
             (name.title(), val) for name, val in headers.items())
 
         if req._tunnel_host:
-            tunnel_headers = {'Connection': connection_type}
+            tunnel_headers = {}
             proxy_auth_hdr = "Proxy-Authorization"
             if proxy_auth_hdr in headers:
                 tunnel_headers[proxy_auth_hdr] = headers[proxy_auth_hdr]

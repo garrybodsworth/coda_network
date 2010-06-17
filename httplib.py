@@ -707,6 +707,7 @@ class HTTPConnection:
                                        method = self._method)
         response.begin()
         self.__state = _CS_IDLE
+
         return response
 
     def _tunnel(self, tun_host, tun_port, tun_headers):
