@@ -88,10 +88,7 @@ class HTTPNtlmAuthHandler(AbstractNtlmAuthHandler, urllib2.BaseHandler):
 
 
 class ProxyNtlmAuthHandler(AbstractNtlmAuthHandler, urllib2.BaseHandler):
-    """ 
-        CAUTION: this class has NOT been tested at all!!! 
-        use at your own risk
-    """
+
     auth_header = 'Proxy-authorization'
 
     def http_error_407(self, req, fp, code, msg, headers):
