@@ -89,9 +89,9 @@ f = urllib2.urlopen('http://www.python.org/')
 # complex proxies  XXX not sure what exactly was meant by this
 # abstract factory for opener
 
+from coda_network import httplib
 import base64
 import hashlib
-import httplib
 import mimetools
 import os
 import posixpath
