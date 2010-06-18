@@ -13,6 +13,7 @@
 ##############################################################################
 
 import socket
+import select
 
 from coda_network import urllib2
 from coda_network import httplib
@@ -67,3 +68,105 @@ class HTTPSConnectHandler(urllib2.HTTPSHandler):
         # We expose the socket for CONNECT.
         resp.connect_sock = h.sock
         return resp
+
+
+###########################################################################
+#
+def build_connect_opener(cert=None, proxy_handlers=None):
+    """Builds the list of opener objects required for the specific type of request."""
+    handlers = [HTTPSConnectHandler(cert=cert)]
+
+    if proxy_handlers:
+        handlers.extend(proxy_handlers)
+
+    return urllib2.build_opener(*handlers)
+#
+###########################################################################
+
+
+###########################################################################
+#
+def create_connect_handle(host, proxy_handlers, cert=None, timeout_sec=None):
+    """
+    Wraps handle connect creation.
+    """
+    url_req = urllib2.Request(host)
+
+    url_opener = build_connect_opener(cert, proxy_handlers)
+
+    if timeout_sec:
+        return url_opener.open(url_req, timeout=timeout_sec)
+
+    return url_opener.open(url_req)
+#
+###########################################################################
+
+
+###########################################################################
+#
+def socket_read_write(soc, connection, max_idling=20, socket_timeout=20, chunk_size=8192):
+    """Handle the socket communication."""
+    iw = [soc, connection]
+    ow = []
+    count = 0
+    while 1:
+        count += 1
+        (ins, outs, errs) = select.select(iw, ow, iw, socket_timeout)
+        if errs:
+            break
+
+        if ins:
+            for i in ins:
+                if i is soc:
+                    out = connection
+                else:
+                    out = soc
+                data = i.recv(chunk_size)
+                if data:
+                    out.send(data)
+                    count = 0
+
+        else:
+            # SOCKET: no data after socket_timeout? kill it
+            break
+
+        if count == max_idling:
+            break
+#
+###########################################################################
+
+
+###########################################################################
+#
+def do_connect_chain(host, port, proxy, connection, outputfile, protocol_version):
+    scheme = 'http'
+    if port == 443:
+        scheme = 'https'
+
+    sock = None
+    handle = None
+    try:
+        if proxy.has_proxy():
+            handle = create_connect_handle('%s://%s:%d' % (scheme, host, port), proxy)
+            sock = handle.connect_sock
+        else:
+            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            sock.connect((host, port))
+
+        outputfile.write("%s 200 Connection established\r\n" % protocol_version)
+        outputfile.write("Proxy-agent: %s\r\n" % "blah")
+        outputfile.write("\r\n")
+
+        socket_read_write(sock, connection, 100)
+
+    finally:
+        if sock:
+            sock.close()
+
+        if handle:
+            handle.close()
+
+        if connection:
+            connection.close()
+#
+###########################################################################
