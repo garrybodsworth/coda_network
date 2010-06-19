@@ -1,0 +1,16 @@
+#!/usr/bin/env python
+# encoding: utf-8
+from setuptools import setup, find_packages
+
+VERSION_STRING = '1.0'
+
+setup(
+    name = 'coda_network',
+    version = VERSION_STRING,
+    packages = find_packages(),
+
+    author = 'Cambridge Visual Networks',
+    author_email = 'support@camvine.com',
+    license = 'python',
+    url = 'http://www.camvine.com/',
+)
