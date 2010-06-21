@@ -69,6 +69,7 @@ MINI PROXY
 This is a small but fully functioning tool for use as a proxy.  This will also connect to upstream proxies so can be used as say a bridge to connect to NTLM resources or indeed to the Internet in a hostile Windows network environment.
 
 Options:
+
 * -h, --help            show this help message and exit
 * --listen-address = Listening address of the proxy
 * --port = Listening port of the proxy
@@ -79,6 +80,7 @@ Options:
 * --realm= = Real for digest, also is domain for NTLM
 
 Example invocations:
+
 * python mini_proxy.py
     This will just act as a simple proxy gateway.
 * python mini_proxy.py --port=8912
@@ -92,6 +94,7 @@ Example invocations:
 
 FAQ
 ===
+
 **What versions of Python are supported?**
   It was written and tested on a Linux system with 2.6.4.  It has worked with a couple of different revisions of 2.6.  In theory looking at the code for 2.7 it should also work with that.
 
