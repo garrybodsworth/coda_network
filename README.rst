@@ -34,6 +34,9 @@ This provides the proxy and HTTP authentication handlers.
 **ntlm subdirectory**
 This is a copy of a portion of the code from python-ntlm http://code.google.com/p/python-ntlm/
 
+**mini_proxy.py**
+A proxy written using the new funky networking code that can connect to upstream proxies of the following type: noauth, basic, digest, ntlm.
+
 Fixes and features provided
 ===========================
 
@@ -59,6 +62,33 @@ What coda_network can do
 Known limitations
 =================
 Digest authentication of a website when going through a proxy seems broken.  This is probably due to the source of the request in generating the hash.  It is such corner case that I am not looking into it right now.
+
+MINI PROXY
+==========
+
+This is a small but fully functioning tool for use as a proxy.  This will also connect to upstream proxies so can be used as say a bridge to connect to NTLM resources or indeed to the Internet in a hostile Windows network environment.
+
+Options:
+* -h, --help            show this help message and exit
+* --listen-address = Listening address of the proxy
+* --port = Listening port of the proxy
+* --proxy-type = Type of proxy to connect to [noauth, basic, digest, ntlm]
+* --proxy = Address of the upstream proxy
+* --user = User name for an authenticated proxy
+* --password = Password for authenticated proxy
+* --realm= = Real for digest, also is domain for NTLM
+
+Example invocations:
+* python mini_proxy.py
+    This will just act as a simple proxy gateway.
+* python mini_proxy.py --port=8912
+    This will just act as a simple proxy gateway but on port 8912.
+* python mini_proxy.py --proxy-type=basic --user=myuser --password=mypassword --proxy=http://192.168.100.100:8080
+    This will act as a proxy to an basic authentication proxy.
+* python mini_proxy.py --proxy-type=digest --user=myuser --password=mypassword --realm=myrealm --proxy=http://192.168.100.100:8080
+	This will act as a proxy to a digest authenticated proxy.
+* python mini_proxy.py --proxy-type=ntlm --user=myuser --password=mypassword --realm=mydomain --proxy=http://192.168.100.100:8080
+    This will act as a proxy to an NTLM Threat Management Gateway oojimaflip.
 
 FAQ
 ===
