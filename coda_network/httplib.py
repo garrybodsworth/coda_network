@@ -1188,9 +1188,7 @@ else:
             return HTTPConnection.getresponse(self)
 
         def _tunnel(self, tun_host, tun_port, tun_headers):
-            response = self._tunnel_setup(tun_host, tun_port, tun_headers)
-
-            return response
+            return self._tunnel_setup(tun_host, tun_port, tun_headers)
 
     __all__.append("HTTPSConnection")
 

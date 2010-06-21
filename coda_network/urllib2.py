@@ -221,6 +221,11 @@ class Request:
                 return getattr(self, attr)
         raise AttributeError, attr
 
+    def reset_state(self):
+        # This gets reset with proxies and the suchlike so we should
+        # start afresh.
+        self.type = None
+
     def get_method(self):
         if self.method:
             return self.method
@@ -386,6 +391,8 @@ class OpenerDirector:
             if data is not None:
                 req.add_data(data)
 
+        # This resets transient data in the request object.
+        req.reset_state()
         req.timeout = timeout
         protocol = req.get_type()
 

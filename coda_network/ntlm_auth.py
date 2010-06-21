@@ -56,7 +56,6 @@ class AbstractNtlmAuthHandler:
             req.add_header(self.auth_header, auth)
             # We need to use the parent to open and keep the connection because NTLM authenticates the connection, not single requests
             req.add_header('Connection', 'Keep-Alive')
-            # Note that when keepalive.HTTPHandler is used the response is a httplib.HTTPResponse subclass (it supports more methods), not the normal addinfourl
             return self.parent.open(req)
         else:
             return None
