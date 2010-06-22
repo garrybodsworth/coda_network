@@ -60,7 +60,7 @@ class ProxyResponder(BaseHTTPServer.BaseHTTPRequestHandler):
             else:
                 port = int(port)
 
-            do_connect_chain(host, port, self.server.get_proxy_handlers(), self.connection, self.wfile, self.protocol_version)
+            do_connect_chain(host, port, self.server.get_proxy_handlers(), None, self.connection, self.wfile, self.protocol_version)
 
         except Exception, e:
             logging.exception('%r' % e)
