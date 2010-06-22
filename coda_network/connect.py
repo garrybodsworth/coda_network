@@ -141,7 +141,7 @@ def socket_read_write(soc, connection, max_idling=20, socket_timeout=20, chunk_s
 
 ###########################################################################
 #
-def do_connect_chain(host, port, proxy_handlers, connection, outputfile, protocol_version):
+def do_connect_chain(host, port, proxy_handlers, auth_handlers, connection, outputfile, protocol_version):
     scheme = 'http'
     if port == 443:
         scheme = 'https'
@@ -150,7 +150,7 @@ def do_connect_chain(host, port, proxy_handlers, connection, outputfile, protoco
     handle = None
     try:
         if proxy_handlers:
-            handle = create_connect_handle('%s://%s:%d' % (scheme, host, port), proxy_handlers)
+            handle = create_connect_handle('%s://%s:%d' % (scheme, host, port), proxy_handlers, auth_handlers)
             sock = handle.connect_sock
         else:
             sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
