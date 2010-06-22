@@ -18,12 +18,15 @@ from coda_network import urllib2
 
 ###########################################################################
 #
-def build_opener(cert=None, proxy_handlers=None, keepalive=False):
+def build_opener(cert=None, proxy_handlers=None, auth_handlers=None, keepalive=False):
     """Builds the list of opener objects required for the specific type of request."""
     handlers = [urllib2.HTTPSHandler(tcp_keepalive=keepalive, cert=cert)]
 
     if proxy_handlers:
         handlers.extend(proxy_handlers)
+
+    if auth_handlers:
+        handlers.extend(auth_handlers)
 
     return urllib2.build_opener(*handlers)
 #
@@ -32,7 +35,7 @@ def build_opener(cert=None, proxy_handlers=None, keepalive=False):
 
 ###########################################################################
 #
-def create_download_handle(url, postdata, proxy_handlers, cert, last_modified=None, etag=None, headers=None, method=None, timeout_sec=None):
+def create_download_handle(url, postdata, proxy_handlers, auth_handlers, cert, last_modified=None, etag=None, headers=None, method=None, timeout_sec=None):
     """
     Wraps handle download creation.
     """
@@ -52,7 +55,7 @@ def create_download_handle(url, postdata, proxy_handlers, cert, last_modified=No
     if etag:
         url_req.add_header('If-None-Match', etag)
 
-    url_opener = build_opener(cert, proxy_handlers)
+    url_opener = build_opener(cert, proxy_handlers, auth_handlers)
 
     if timeout_sec:
         return url_opener.open(url_req, timeout=timeout_sec)
@@ -64,11 +67,11 @@ def create_download_handle(url, postdata, proxy_handlers, cert, last_modified=No
 
 ##########################################################################
 #
-def do_download(url, postdata, proxy_handlers=None, cert=None, timeout_sec=None):
+def do_download(url, postdata, proxy_handlers=None, auth_handlers=None, cert=None, timeout_sec=None):
     """Perform a simple download.  Returns (code, data)."""
     handle = None
     try:
-        handle = create_download_handle(url, postdata, proxy_handlers, cert, timeout_sec=timeout_sec)
+        handle = create_download_handle(url, postdata, proxy_handlers, auth_handlers, cert, timeout_sec=timeout_sec)
         return 200, handle.read()
 
     except urllib2.HTTPError, e:

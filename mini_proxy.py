@@ -80,6 +80,7 @@ class ProxyResponder(BaseHTTPServer.BaseHTTPRequestHandler):
                 handle = create_download_handle(url,
                                         postdata,
                                         self.server.get_proxy_handlers(),
+                                        None,
                                         None)
 
                 self._do_send_code(200)

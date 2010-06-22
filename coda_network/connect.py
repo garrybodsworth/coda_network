@@ -72,12 +72,15 @@ class HTTPSConnectHandler(urllib2.HTTPSHandler):
 
 ###########################################################################
 #
-def build_connect_opener(cert=None, proxy_handlers=None):
+def build_connect_opener(cert=None, proxy_handlers=None, auth_handlers=None):
     """Builds the list of opener objects required for the specific type of request."""
     handlers = [HTTPSConnectHandler(cert=cert)]
 
     if proxy_handlers:
         handlers.extend(proxy_handlers)
+
+    if auth_handlers:
+        handlers.extend(auth_handlers)
 
     return urllib2.build_opener(*handlers)
 #
@@ -86,13 +89,13 @@ def build_connect_opener(cert=None, proxy_handlers=None):
 
 ###########################################################################
 #
-def create_connect_handle(host, proxy_handlers, cert=None, timeout_sec=None):
+def create_connect_handle(host, proxy_handlers, auth_handlers=None, cert=None, timeout_sec=None):
     """
     Wraps handle connect creation.
     """
     url_req = urllib2.Request(host)
 
-    url_opener = build_connect_opener(cert, proxy_handlers)
+    url_opener = build_connect_opener(cert, proxy_handlers, auth_handlers)
 
     if timeout_sec:
         return url_opener.open(url_req, timeout=timeout_sec)
