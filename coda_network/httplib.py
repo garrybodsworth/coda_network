@@ -1152,6 +1152,10 @@ else:
             "Connect to a host on a given (SSL) port."
             self.sock = socket.create_connection((self._real_host, self._real_port), self.timeout)
 
+            if self.tcp_keepalive:
+                # Make the socket tcp_keepalive
+                self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
+
             if self._tunnel_host:
                 self._set_hostport(self._tunnel_host, self._tunnel_port)
             else:
