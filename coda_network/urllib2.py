@@ -1040,11 +1040,13 @@ class AbstractDigestAuthHandler:
         # algorithm should be case-insensitive according to RFC2617
         algorithm = algorithm.upper()
         # lambdas assume digest modules are imported at the top level
-        if algorithm == 'MD5':
+        # This covers 'MD5' and 'MD5-sess' which is reported from Windows
+        if 'MD5' in algorithm:
             H = lambda x: hashlib.md5(x).hexdigest()
         elif algorithm == 'SHA':
             H = lambda x: hashlib.sha1(x).hexdigest()
-        # XXX MD5-sess
+        else:
+            return None, None
         KD = lambda s, d: H("%s:%s" % (s, d))
         return H, KD
 
