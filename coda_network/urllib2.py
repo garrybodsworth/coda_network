@@ -988,7 +988,7 @@ class AbstractDigestAuthHandler:
         except KeyError:
             return None
 
-        H, KD = self.get_algorithm_impls(algorithm)
+        H, KD, _A1 = self.get_algorithm_impls(algorithm)
         if H is None:
             return None
 
@@ -1003,7 +1003,8 @@ class AbstractDigestAuthHandler:
             entdig = None
 
         method, host = self.get_request(req)
-        A1 = "%s:%s:%s" % (user, realm, pw)
+        cnonce = self.get_cnonce(nonce)
+        A1 = _A1(user, realm, pw, nonce, cnonce)
         A2 = "%s:%s" % (method, host)
         if qop == 'auth':
             if nonce == self.last_nonce:
@@ -1013,7 +1014,6 @@ class AbstractDigestAuthHandler:
                 self.last_nonce = nonce
 
             ncvalue = '%08x' % self.nonce_count
-            cnonce = self.get_cnonce(nonce)
             noncebit = "%s:%s:%s:%s:%s" % (nonce, ncvalue, cnonce, qop, H(A2))
             respdig = KD(H(A1), noncebit)
         elif qop is None:
@@ -1041,14 +1041,22 @@ class AbstractDigestAuthHandler:
         algorithm = algorithm.upper()
         # lambdas assume digest modules are imported at the top level
         # This covers 'MD5' and 'MD5-sess' which is reported from Windows
-        if 'MD5' in algorithm:
+        if algorithm == 'MD5':
             H = lambda x: hashlib.md5(x).hexdigest()
+            # username, realm, password, nonce, cnonce
+            _A1 = lambda u, r, p, n, c: "%s:%s:%s" % (u, r, p)
+        elif algorithm == 'MD5-sess':
+            H = lambda x: hashlib.md5(x).hexdigest()
+            # username, realm, password, nonce, cnonce
+            _A1 = lambda u, r, p, n, c: '%s:%s:%s' % (H('%s:%s:%s' % (u, r, p)), n, c)
         elif algorithm == 'SHA':
             H = lambda x: hashlib.sha1(x).hexdigest()
+            # username, realm, password, nonce, cnonce
+            _A1 = lambda u, r, p, n, c: "%s:%s:%s" % (u, r, p)
         else:
-            return None, None
+            return None, None, None
         KD = lambda s, d: H("%s:%s" % (s, d))
-        return H, KD
+        return H, KD, _A1
 
     def get_entity_digest(self, data, chal):
         # XXX not implemented yet
