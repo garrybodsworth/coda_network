@@ -1045,7 +1045,7 @@ class AbstractDigestAuthHandler:
             H = lambda x: hashlib.md5(x).hexdigest()
             # username, realm, password, nonce, cnonce
             _A1 = lambda u, r, p, n, c: "%s:%s:%s" % (u, r, p)
-        elif algorithm == 'MD5-sess':
+        elif algorithm == 'MD5-SESS':
             H = lambda x: hashlib.md5(x).hexdigest()
             # username, realm, password, nonce, cnonce
             _A1 = lambda u, r, p, n, c: '%s:%s:%s' % (H('%s:%s:%s' % (u, r, p)), n, c)
