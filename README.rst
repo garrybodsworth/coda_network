@@ -28,6 +28,12 @@ Some simple wrappers I use to expose the functionality.  This also provides a re
 **connect.py**
 This is to allow connecting to a vanilla socket whilst reusing all the proxy auto code (rather than the rather painful process of not being able to reuse it).
 
+**oauth_auth.py**
+This provides the HTTP authentication handlers for OAuth authentication.
+
+**oauth subdirectory**
+The helper functions for making OAuth requests.  Some of this is cribbed from http://github.com/simplegeo/python-oauth2  I tried to factor out all the OAuth specific stuff so that it has minimal dependencies on the logic of how requests are made.
+
 **ntlm_auth.py**
 This provides the proxy and HTTP authentication handlers.
 
