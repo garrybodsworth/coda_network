@@ -1224,6 +1224,8 @@ class AbstractHTTPHandler(BaseHandler):
                     # all the outstanding data before attempting anything else.
                     r.read()
         except socket.error, err: # XXX what error?
+            req.http_conn.close()
+            del req.http_conn
             req.http_conn = None
             raise URLError(err)
 
