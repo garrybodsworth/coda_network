@@ -15,7 +15,7 @@
 import re
 
 from coda_network import urllib2
-from coda_network.oauth import get_oauth_header
+from coda_network.oauth import get_oauth_header, AUTH_HEADER_OAUTH
 
 class AbstractOauthAuthHandler:
 
@@ -57,20 +57,24 @@ class AbstractOauthAuthHandler:
                 return self.retry_http_oauth_auth(host, req, auth_dict.get('realm', ''))
 
     def retry_http_oauth_auth(self, host, req, realm):
-        consumer, token = self.passwd.find_user_password(None, host)
-        if consumer is not None:
-            auth = get_oauth_header(req, consumer, token, realm)
-            if req.headers.get(self.auth_header, None) == auth:
-                return None
+        auth = get_oauth_header(host, req)
+        if auth:
             req.add_unredirected_header(self.auth_header, auth)
             return self.parent.open(req, timeout=req.timeout)
         else:
             return None
 
+    def get_oauth_header(self, host, req):
+        consumer, token = self.passwd.find_user_password(None, host)
+        if consumer is not None:
+            auth = get_oauth_header(req, consumer, token)
+            if req.headers.get(self.auth_header, None) != auth:
+                return auth
+        return None
 
 class HTTPOauthAuthHandler(AbstractOauthAuthHandler, urllib2.BaseHandler):
 
-    auth_header = 'Authorization'
+    auth_header = AUTH_HEADER_OAUTH
 
     def http_error_401(self, req, fp, code, msg, headers):
         url = req.get_full_url()

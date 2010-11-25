@@ -20,6 +20,8 @@ import binascii
 import random
 import time
 
+AUTH_HEADER_OAUTH = 'Authorization'
+
 OAUTH_VERSION = '1.0'
 
 def escape(s):
@@ -194,24 +196,24 @@ def generate_header(params, realm):
     return auth_header
 
 def get_oauth_header(req, consumer, token, realm=''):
-        params = {}
-        # The version of oauth
-        params['oauth_version'] = OAUTH_VERSION
-        # Suitable nonce value
-        params['oauth_nonce'] = generate_nonce()
-        # Timestamp to stop replay attacks
-        params['oauth_timestamp'] = generate_timestamp()
+    params = {}
+    # The version of oauth
+    params['oauth_version'] = OAUTH_VERSION
+    # Suitable nonce value
+    params['oauth_nonce'] = generate_nonce()
+    # Timestamp to stop replay attacks
+    params['oauth_timestamp'] = generate_timestamp()
 
-        if consumer:
-            params['oauth_consumer_key'] = consumer.key
-        else:
-            raise Exception('No consumer key given.')
+    if consumer:
+        params['oauth_consumer_key'] = consumer.key
+    else:
+        raise Exception('No consumer key given.')
 
-        if token:
-            params['oauth_token'] = token.key
+    if token:
+        params['oauth_token'] = token.key
 
-        signature_method = SignatureMethod_HMAC_SHA1()
-        params['oauth_signature_method'] = signature_method.name
-        # Your signature using token and consumer secrets
-        params['oauth_signature'] = signature_method.sign(params, req.get_full_url(), req.get_method(), consumer, token)
-        return generate_header(params, realm)
+    signature_method = SignatureMethod_HMAC_SHA1()
+    params['oauth_signature_method'] = signature_method.name
+    # Your signature using token and consumer secrets
+    params['oauth_signature'] = signature_method.sign(params, req.get_full_url(), req.get_method(), consumer, token)
+    return generate_header(params, realm)
