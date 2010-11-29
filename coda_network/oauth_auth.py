@@ -57,14 +57,14 @@ class AbstractOauthAuthHandler:
                 return self.retry_http_oauth_auth(host, req, auth_dict.get('realm', ''))
 
     def retry_http_oauth_auth(self, host, req, realm):
-        auth = get_oauth_header(host, req)
+        auth = self.generate_oauth_header(host, req)
         if auth:
             req.add_unredirected_header(self.auth_header, auth)
             return self.parent.open(req, timeout=req.timeout)
         else:
             return None
 
-    def get_oauth_header(self, host, req):
+    def generate_oauth_header(self, host, req):
         consumer, token = self.passwd.find_user_password(None, host)
         if consumer is not None:
             auth = get_oauth_header(req, consumer, token)
