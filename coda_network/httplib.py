@@ -749,7 +749,6 @@ class HTTPConnection:
     def close(self):
         """Close the connection to the HTTP server."""
         if self.sock:
-            self.sock.shutdown(2)
             self.sock.close()   # close it manually... there may be other refs
             self.sock = None
         if self.__response:
