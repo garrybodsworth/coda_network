@@ -1124,7 +1124,8 @@ else:
     # We need to fix the ssl socket close() method or we are going to have sockets left
     # around even after calling.  This fixes the reference counting.
     def ssl_wrap_socket(sock, key_file, cert_file):
-        def close(self):
+        import types
+        def ssl_socket_close(self):
             """Free the socket once the refcount is zero."""
             self._makefile_refs -= 1
             if self._sslobj and (self._makefile_refs < 1):
@@ -1132,7 +1133,7 @@ else:
                 socket.close(self)
         ssl_sock = ssl.wrap_socket(sock, key_file, cert_file)
         # Patch the object to use the fixed close method.
-        ssl_sock.close = close
+        ssl_sock.close = types.MethodType(ssl_socket_close, ssl_sock, ssl.SSLSocket)
         return ssl_sock
 
     class HTTPSConnection(HTTPConnection):
