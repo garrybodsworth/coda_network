@@ -1130,7 +1130,7 @@ else:
             self._makefile_refs -= 1
             if self._sslobj and (self._makefile_refs < 1):
                 self._sslobj = None
-                socket.close(self)
+                socket.socket.close(self)
         ssl_sock = ssl.wrap_socket(sock, key_file, cert_file)
         # Patch the object to use the fixed close method.
         ssl_sock.close = types.MethodType(ssl_socket_close, ssl_sock, ssl.SSLSocket)
