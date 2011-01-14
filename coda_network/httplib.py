@@ -1118,7 +1118,6 @@ class HTTP:
 
 try:
     import ssl
-
 except ImportError:
     pass
 else:
@@ -1134,6 +1133,7 @@ else:
         ssl_sock = ssl.wrap_socket(sock, key_file, cert_file)
         # Patch the object to use the fixed close method.
         ssl_sock.close = close
+        return ssl_sock
 
     class HTTPSConnection(HTTPConnection):
         """This class allows communication via SSL.
