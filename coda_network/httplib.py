@@ -1121,19 +1121,19 @@ try:
 except ImportError:
     pass
 else:
-    # We need to fix the ssl socket close() method or we are going to have sockets left
-    # around even after calling.  This fixes the reference counting.
+    # We need to fix the ssl socket makefile method to auto close.
     def ssl_wrap_socket(sock, key_file, cert_file):
+        # Work around python bug #5328
+        def sslsocket_makefile_fixed(self, mode='r', bufsize=-1):
+            from socket import _fileobject
+
+            self._makefile_refs += 1
+            return _fileobject(self, mode, bufsize, True)
+
         import types
-        def ssl_socket_close(self):
-            """Free the socket once the refcount is zero."""
-            self._makefile_refs -= 1
-            if self._sslobj and (self._makefile_refs < 1):
-                self._sslobj = None
-                socket.socket.close(self)
         ssl_sock = ssl.wrap_socket(sock, key_file, cert_file)
-        # Patch the object to use the fixed close method.
-        ssl_sock.close = types.MethodType(ssl_socket_close, ssl_sock, ssl.SSLSocket)
+        # Patch the object to use the fixed makefile method.
+        ssl_sock.makefile = types.MethodType(sslsocket_makefile_fixed, ssl_sock, ssl.SSLSocket)
         return ssl_sock
 
     class HTTPSConnection(HTTPConnection):
