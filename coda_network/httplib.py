@@ -1118,9 +1118,23 @@ class HTTP:
 
 try:
     import ssl
+
 except ImportError:
     pass
 else:
+    # We need to fix the ssl socket close() method or we are going to have sockets left
+    # around even after calling.  This fixes the reference counting.
+    def ssl_wrap_socket(sock, key_file, cert_file):
+        def close(self):
+            """Free the socket once the refcount is zero."""
+            self._makefile_refs -= 1
+            if self._sslobj and (self._makefile_refs < 1):
+                self._sslobj = None
+                socket.close(self)
+        ssl_sock = ssl.wrap_socket(sock, key_file, cert_file)
+        # Patch the object to use the fixed close method.
+        ssl_sock.close = close
+
     class HTTPSConnection(HTTPConnection):
         """This class allows communication via SSL.
 
@@ -1146,7 +1160,7 @@ else:
             self.connect_response = None
 
         def make_ssl(self):
-            self.sock = ssl.wrap_socket(self.sock, self.key_file, self.cert_file)
+            self.sock = ssl_wrap_socket(self.sock, self.key_file, self.cert_file)
 
         def connect(self):
             "Connect to a host on a given (SSL) port."
