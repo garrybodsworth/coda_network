@@ -839,6 +839,9 @@ class AbstractBasicAuthHandler:
     def reset_retry_count(self):
         self.retried = 0
 
+    def raise_retried_failed(self, req, headers):
+        raise NotImplemented()
+
     def http_error_auth_reqed(self, authreq, host, req, headers):
         # host may be an authority (without userinfo) or a URL with an
         # authority
@@ -847,8 +850,7 @@ class AbstractBasicAuthHandler:
 
         if self.retried > 5:
             # retry sending the username:password 5 times before failing.
-            raise HTTPError(req.get_full_url(), 401, "basic auth failed",
-                            headers, None)
+            self.raise_retried_failed(req, headers)
         else:
             self.retried += 1
 
@@ -886,6 +888,8 @@ class HTTPBasicAuthHandler(AbstractBasicAuthHandler, BaseHandler):
         self.reset_retry_count()
         return response
 
+    def raise_retried_failed(self, req, headers):
+        raise HTTPError(req.get_full_url(), 401, "basic auth failed", headers, None)
 
 class ProxyBasicAuthHandler(AbstractBasicAuthHandler, BaseHandler):
 
@@ -903,6 +907,8 @@ class ProxyBasicAuthHandler(AbstractBasicAuthHandler, BaseHandler):
         self.reset_retry_count()
         return response
 
+    def raise_retried_failed(self, req, headers):
+        raise HTTPError(req.get_full_url(), 407, "basic auth failed", headers, None)
 
 def randombytes(n):
     """Return n random bytes."""
@@ -941,6 +947,9 @@ class AbstractDigestAuthHandler:
     def reset_retry_count(self):
         self.retried = 0
 
+    def raise_retried_failed(self, req, headers):
+        raise NotImplemented()
+
     def http_error_auth_reqed(self, auth_header, host, req, headers):
         authreq = headers.get(auth_header, None)
         if self.retried > 5:
@@ -949,8 +958,7 @@ class AbstractDigestAuthHandler:
             # prompting for the information. Crap. This isn't great
             # but it's better than the current 'repeat until recursion
             # depth exceeded' approach <wink>
-            raise HTTPError(req.get_full_url(), 401, "digest auth failed",
-                            headers, None)
+            self.raise_retried_failed(req, headers)
         else:
             self.retried += 1
         if authreq:
@@ -1090,6 +1098,8 @@ class HTTPDigestAuthHandler(BaseHandler, AbstractDigestAuthHandler):
         self.reset_retry_count()
         return retry
 
+    def raise_retried_failed(self, req, headers):
+        raise HTTPError(req.get_full_url(), 401, "digest auth failed", headers, None)
 
 class ProxyDigestAuthHandler(BaseHandler, AbstractDigestAuthHandler):
 
@@ -1116,6 +1126,9 @@ class ProxyDigestAuthHandler(BaseHandler, AbstractDigestAuthHandler):
                                            host, req, headers)
         self.reset_retry_count()
         return retry
+
+    def raise_retried_failed(self, req, headers):
+        raise HTTPError(req.get_full_url(), 407, "digest auth failed", headers, None)
 
 class RecvAdapter(object):
     def __init__(self, wrapped):
