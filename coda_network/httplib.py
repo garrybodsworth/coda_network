@@ -1231,7 +1231,8 @@ else:
                 try:
                     self.make_ssl()
                     o = urlparse(url, 'http')
-                    self._send_request(method, o.path, body, headers)
+                    locator = urlunparse(('', '', o.path, o.params, o.query, o.fragment))
+                    self._send_request(method, locator, body, headers)
                 except socket.error, v:
                     # trap 'Broken pipe' if we're allowed to automatically reconnect
                     if v[0] != 32 or not self.auto_open:
