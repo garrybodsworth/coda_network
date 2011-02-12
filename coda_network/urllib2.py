@@ -89,9 +89,9 @@ f = urllib2.urlopen('http://www.python.org/')
 # complex proxies  XXX not sure what exactly was meant by this
 # abstract factory for opener
 
-from coda_network import httplib
 import base64
 import hashlib
+import httplib
 import mimetools
 import os
 import posixpath
@@ -109,7 +109,7 @@ except ImportError:
     from StringIO import StringIO
 
 from urllib import (unwrap, unquote, splittype, splithost, quote,
-     addinfourl, splitport,
+     addinfourl, splitport, splittag,
      splitattr, ftpwrapper, splituser, splitpasswd, splitvalue)
 
 # support for FileHandler, proxies via environment variables
@@ -191,6 +191,7 @@ class Request:
                  method=None):
         # unwrap('<URL:type://host/path>') --> 'type://host/path'
         self.__original = unwrap(url)
+        self.__original, fragment = splittag(self.__original)
         self.type = None
         # self.__r_type is what's left after doing the splittype
         self.host = None
@@ -310,8 +311,9 @@ class OpenerDirector:
     def __init__(self):
         client_version = "Python-urllib/%s" % __version__
         self.addheaders = [('User-agent', client_version)]
-        # manage the individual handlers
+        # self.handlers is retained only for backward compatibility
         self.handlers = []
+        # manage the individual handlers
         self.handle_open = {}
         self.handle_error = {}
         self.process_response = {}
@@ -361,8 +363,6 @@ class OpenerDirector:
             added = True
 
         if added:
-            # the handlers must work in an specific order, the order
-            # is specified in a Handler attribute
             bisect.insort(self.handlers, handler)
             handler.add_parent(self)
 
@@ -393,6 +393,7 @@ class OpenerDirector:
 
         # This resets transient data in the request object.
         req.reset_state()
+
         req.timeout = timeout
         protocol = req.get_type()
 
@@ -463,7 +464,7 @@ def build_opener(*handlers):
     """
     import types
     def isclass(obj):
-        return isinstance(obj, types.ClassType) or hasattr(obj, "__bases__")
+        return isinstance(obj, (types.ClassType, type))
 
     opener = OpenerDirector()
     default_classes = [ProxyHandler, UnknownHandler, HTTPHandler,
@@ -648,9 +649,9 @@ def _parse_proxy(proxy):
     The authority component may optionally include userinfo (assumed to be
     username:password):
 
-    >>> _parse_proxy('joe:password')
+    >>> _parse_proxy('joe:password@proxy.example.com')
     (None, 'joe', 'password', 'proxy.example.com')
-    >>> _parse_proxy('joe:password:3128')
+    >>> _parse_proxy('joe:password@proxy.example.com:3128')
     (None, 'joe', 'password', 'proxy.example.com:3128')
 
     Same examples, but with URLs instead:
@@ -835,6 +836,9 @@ class AbstractBasicAuthHandler:
         self.add_password = self.passwd.add_password
         self.retried = 0
 
+    def reset_retry_count(self):
+        self.retried = 0
+
     def http_error_auth_reqed(self, authreq, host, req, headers):
         # host may be an authority (without userinfo) or a URL with an
         # authority
@@ -853,7 +857,10 @@ class AbstractBasicAuthHandler:
             if mo:
                 scheme, quote, realm = mo.groups()
                 if scheme.lower() == 'basic':
-                    return self.retry_http_basic_auth(host, req, realm)
+                    response = self.retry_http_basic_auth(host, req, realm)
+                    if response and response.code != 401:
+                        self.retried = 0
+                    return response
 
     def retry_http_basic_auth(self, host, req, realm):
         user, pw = self.passwd.find_user_password(realm, host)
@@ -874,8 +881,10 @@ class HTTPBasicAuthHandler(AbstractBasicAuthHandler, BaseHandler):
 
     def http_error_401(self, req, fp, code, msg, headers):
         url = req.get_full_url()
-        return self.http_error_auth_reqed('www-authenticate',
-                                          url, req, headers)
+        response = self.http_error_auth_reqed('www-authenticate',
+                                              url, req, headers)
+        self.reset_retry_count()
+        return response
 
 
 class ProxyBasicAuthHandler(AbstractBasicAuthHandler, BaseHandler):
@@ -889,8 +898,10 @@ class ProxyBasicAuthHandler(AbstractBasicAuthHandler, BaseHandler):
         # userinfo.
         req.proxy_connection_type = headers.get('Proxy-Connection', 'close')
         authority = req.get_host()
-        return self.http_error_auth_reqed('proxy-authenticate',
+        response = self.http_error_auth_reqed('proxy-authenticate',
                                           authority, req, headers)
+        self.reset_retry_count()
+        return response
 
 
 def randombytes(n):
@@ -1025,8 +1036,7 @@ class AbstractDigestAuthHandler:
         # XXX should the partial digests be encoded too?
 
         base = 'username="%s", realm="%s", nonce="%s", uri="%s", ' \
-               'response="%s"' % (user, realm, nonce, host,
-                                  respdig)
+               'response="%s"' % (user, realm, nonce, host, respdig)
         if opaque:
             base += ', opaque="%s"' % opaque
         if entdig:
@@ -1181,7 +1191,6 @@ class AbstractHTTPHandler(BaseHandler):
             - geturl(): return the original request URL
             - code: HTTP status code
         """
-
         host = req.get_host()
         if not host:
             raise URLError('no host given')
@@ -1192,8 +1201,10 @@ class AbstractHTTPHandler(BaseHandler):
 
         req.http_conn.set_debuglevel(self._debuglevel)
 
-        headers = dict(req.headers)
-        headers.update(req.unredirected_hdrs)
+        headers = dict(req.unredirected_hdrs)
+        headers.update(dict((k, v) for k, v in req.headers.items()
+                            if k not in headers))
+
         # We want to make an HTTP/1.1 request, but the addinfourl
         # class isn't prepared to deal with a persistent connection.
         # It will try to read all remaining data from the socket,
@@ -1348,11 +1359,18 @@ def parse_http_list(s):
 
     return [part.strip() for part in res]
 
+def _safe_gethostbyname(host):
+    try:
+        return socket.gethostbyname(host)
+    except socket.gaierror:
+        return None
+
 class FileHandler(BaseHandler):
     # Use local file or FTP depending on form of URL
     def file_open(self, req):
         url = req.get_selector()
-        if url[:2] == '//' and url[2:3] != '/':
+        if url[:2] == '//' and url[2:3] != '/' and (req.host and
+                req.host != 'localhost'):
             req.type = 'ftp'
             return self.parent.open(req)
         else:
@@ -1388,7 +1406,7 @@ class FileHandler(BaseHandler):
             if host:
                 host, port = splitport(host)
             if not host or \
-                (not port and socket.gethostbyname(host) in self.get_names()):
+                (not port and _safe_gethostbyname(host) in self.get_names()):
                 if host:
                     origurl = 'file://' + host + filename
                 else:
@@ -1419,8 +1437,8 @@ class FTPHandler(BaseHandler):
         else:
             passwd = None
         host = unquote(host)
-        user = unquote(user or '')
-        passwd = unquote(passwd or '')
+        user = user or ''
+        passwd = passwd or ''
 
         try:
             host = socket.gethostbyname(host)
