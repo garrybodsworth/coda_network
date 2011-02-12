@@ -898,15 +898,10 @@ class ProxyBasicAuthHandler(AbstractBasicAuthHandler, BaseHandler):
         # userinfo.
         req.proxy_connection_type = headers.get('Proxy-Connection', 'close')
         authority = req.get_host()
-        try:
-            retry = self.http_error_auth_reqed('proxy-authenticate',
-                                               host, req, headers)
-            self.reset_retry_count()
-            return retry
-        except HTTPError as err:
-            if err.code == 401:
-                err.code = 407
-            raise
+        response = self.http_error_auth_reqed('proxy-authenticate',
+                                          authority, req, headers)
+        self.reset_retry_count()
+        return response
 
 
 def randombytes(n):
@@ -1117,15 +1112,10 @@ class ProxyDigestAuthHandler(BaseHandler, AbstractDigestAuthHandler):
     def http_error_407(self, req, fp, code, msg, headers):
         req.proxy_connection_type = headers.get('Proxy-Connection', 'close')
         host = req.get_host()
-        try:
-            reply = self.http_error_auth_reqed('proxy-authenticate',
-                                               authority, req, headers)
-            self.reset_retry_count()
-            return reply
-        except HTTPError as err:
-            if err.code == 401:
-                err.code = 407
-            raise
+        retry = self.http_error_auth_reqed('proxy-authenticate',
+                                           host, req, headers)
+        self.reset_retry_count()
+        return retry
 
 class RecvAdapter(object):
     def __init__(self, wrapped):
