@@ -70,7 +70,7 @@ from array import array
 import os
 import socket
 from sys import py3kwarning
-from urlparse import urlsplit, urlparse
+from urlparse import urlsplit, urlparse, urlunparse
 import warnings
 with warnings.catch_warnings():
     if py3kwarning:
