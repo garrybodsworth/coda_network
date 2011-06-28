@@ -8,7 +8,7 @@ setup(
     name = 'coda_network',
     version = VERSION_STRING,
     packages = find_packages(),
-    scripts = ['mini_proxy.py', ]
+    scripts = ['mini_proxy.py', ],
 
     author = 'Cambridge Visual Networks',
     author_email = 'support@camvine.com',
