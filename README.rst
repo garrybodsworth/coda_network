@@ -102,7 +102,7 @@ FAQ
 ===
 
 **What versions of Python are supported?**
-  It was written and tested on a Linux system with 2.6.4.  It has worked with a couple of different revisions of 2.6.  In theory looking at the code for 2.7 it should also work with that.
+  It was written and tested on a Linux system with 2.6.4.  It has worked with a couple of different revisions of 2.6.  Version 2.7 has been tested as the code has been rebased on the trunk of that (see the README in the original directory).
 
 **Any plans to port to Python 3.0, 3.1, 3.2, etc?**
   Nope.  I don't have a need for it right now, but I think it should be possible to port these fixes when the time comes.
