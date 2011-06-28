@@ -1237,7 +1237,7 @@ class AbstractHTTPHandler(BaseHandler):
                 # Proxy-Authorization should not be sent to origin
                 # server.
                 del headers[proxy_auth_hdr]
-            req.http_conn._set_tunnel(req._tunnel_host, headers=tunnel_headers)
+            req.http_conn.set_tunnel(req._tunnel_host, headers=tunnel_headers)
 
         try:
             req.http_conn.request(req.get_method(), req.get_selector(), req.data, headers)
