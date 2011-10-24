@@ -1242,7 +1242,7 @@ class AbstractHTTPHandler(BaseHandler):
         try:
             req.http_conn.request(req.get_method(), req.get_selector(), req.data, headers)
             r = req.http_conn.getresponse()
-            if r.status != 200:
+            if not (200 <= r.status < 300):
                 if (req.proxy_connection_type.lower() == 'keep-alive'):
                     # If we are reusing the connection then we need to make sure we read
                     # all the outstanding data before attempting anything else.
