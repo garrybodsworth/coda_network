@@ -3,7 +3,7 @@ coda_network
 ============
 
 Author: Garry Bodsworth
-Website: http://www.programmerslog.com
+Website: http://www.fragmentedmemory.com
 
 Thanks to Camvine http://www.camvine.com for allowing the source to be published.
 
