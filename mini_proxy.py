@@ -169,8 +169,12 @@ def parse_proxy(proxy_type, address, user, password, realm):
             password_mgr.add_password(None, address, user, password)
             return [proxy_handler, urllib2.ProxyBasicAuthHandler(password_mgr)]
         elif proxy_type == 'digest':
-            password_mgr = urllib2.HTTPPasswordMgr()
-            password_mgr.add_password(realm, address, user, password)
+            if realm != None:
+                password_mgr = urllib2.HTTPPasswordMgr()
+                password_mgr.add_password(realm, address, user, password)
+            else:
+                password_mgr = urllib2.HTTPPasswordMgrWithDefaultRealm()
+                password_mgr.add_password(None, address, user, password)
             return [proxy_handler, urllib2.ProxyDigestAuthHandler(password_mgr)]
         elif proxy_type == 'ntlm':
             password_mgr = urllib2.HTTPPasswordMgrWithDefaultRealm()
